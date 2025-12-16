@@ -27,18 +27,25 @@ def process_new_message(
     log.debug("properties: %s", properties)
     log.debug("body: %s", body)
 
-    log.info("[ ] Start processing message %r", body)
+    log.warning("[ ] Start processing message %r", body)
     start_time = time.time()
-    time.sleep(0.5)
+
+    number = int(body[-2:])
+    is_odd = number % 2
+
+    time.sleep(1 + is_odd * 2)
     end_time = time.time()
     log.info("Finished processing message %r, sending ack!", body)
     ch.basic_ack(delivery_tag=method.delivery_tag)
     log.warning(
-        "[X] Finished in %.2fs processing message %r", end_time - start_time, body
+        "[X] Finished in %.2fs processing message %r",
+        end_time - start_time,
+        body,
     )
 
 
 def consume_messages(channel: "BlockingChannel") -> None:
+    channel.basic_qos(prefetch_count=1)
     channel.basic_consume(
         queue=MQ_ROUTING_KEY,
         on_message_callback=process_new_message,

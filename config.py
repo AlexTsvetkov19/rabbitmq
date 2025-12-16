@@ -29,5 +29,6 @@ def configure_logging(
     logging.basicConfig(
         level=level,
         datefmt="%Y-%m-%d %H:%M:%S",
-        format="[%(asctime)s.%(msecs)03d] %(funcName)20s %(module)s:%(lineno)d %(levelname)-8s - %(message)s",
+        format="%(message)s",
+        # format="[%(asctime)s.%(msecs)03d] %(funcName)20s %(module)s:%(lineno)d %(levelname)-8s - %(message)s",
     )
