@@ -1,3 +1,5 @@
 .venv/
-.idea/
-.idea/misc.xml
+/.idea/
+__pycache__/
+rabbit/__pycache__/
+rabbit/common/__pycache__/
