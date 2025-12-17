@@ -2,13 +2,11 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+import config
 from config import (
-    get_connection,
     configure_logging,
-    MQ_EXCHANGE,
-    MQ_ROUTING_KEY,
 )
-from rabbit import RabbitBase
+from rabbit.common import EmailUpdatesRabbit
 
 if TYPE_CHECKING:
     from pika.adapters.blocking_connection import BlockingChannel
@@ -28,7 +26,7 @@ def process_new_message(
     log.debug("properties: %s", properties)
     log.debug("body: %s", body)
 
-    log.warning("[ ] Start processing message %r", body)
+    log.warning("[ ] Start checking new user for bad things %r", body)
     start_time = time.time()
 
     number = int(body[-2:])
@@ -39,28 +37,19 @@ def process_new_message(
     log.info("Finished processing message %r, sending ack!", body)
     ch.basic_ack(delivery_tag=method.delivery_tag)
     log.warning(
-        "[X] Finished in %.2fs processing message %r",
+        "[X] Finished checking user in %.2fs, message %r ok",
         end_time - start_time,
         body,
     )
 
 
-def consume_messages(channel: "BlockingChannel") -> None:
-    channel.basic_qos(prefetch_count=1)
-    channel.queue_declare(MQ_ROUTING_KEY)
-    channel.basic_consume(
-        queue=MQ_ROUTING_KEY,
-        on_message_callback=process_new_message,
-        # auto_ack=True,
-    )
-    log.warning("Waiting for messages...")
-    channel.start_consuming()
-
-
 def main():
     configure_logging(level=logging.WARNING),
-    with RabbitBase() as rabbit:
-        consume_messages(channel=rabbit.channel)
+    with EmailUpdatesRabbit() as rabbit:
+        rabbit.consume_messages(
+            message_callback=process_new_message,
+            queue_name=config.MQ_QUEUE_NAME_KYC_EMAIL_UPDATES,
+        )
 
 
 if __name__ == "__main__":
