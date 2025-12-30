@@ -1,14 +1,13 @@
 import logging
 import time
+import random
 from typing import TYPE_CHECKING
 
 from config import (
-    get_connection,
     configure_logging,
-    MQ_EXCHANGE,
     MQ_ROUTING_KEY,
 )
-from rabbit import RabbitBase
+from rabbit.common import SimpleRabbit
 
 if TYPE_CHECKING:
     from pika.adapters.blocking_connection import BlockingChannel
@@ -36,8 +35,16 @@ def process_new_message(
 
     time.sleep(1 + is_odd * 2)
     end_time = time.time()
-    log.info("Finished processing message %r, sending ack!", body)
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+    if random.random() > 0.7:
+        # log.info("--- Couldn't process message %r, sending nack!", body)
+        # ch.basic_nack(delivery_tag=method.delivery_tag)
+        log.info("--- Couldn't process message %r, sending nack(no requeue)!", body)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        # log.info("--- Couldn't process message %r, sending reject!", body)
+        # ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
+    else:
+        log.info("+++ Finished processing message %r, sending ack!", body)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
     log.warning(
         "[X] Finished in %.2fs processing message %r",
         end_time - start_time,
@@ -45,22 +52,10 @@ def process_new_message(
     )
 
 
-def consume_messages(channel: "BlockingChannel") -> None:
-    channel.basic_qos(prefetch_count=1)
-    channel.queue_declare(MQ_ROUTING_KEY)
-    channel.basic_consume(
-        queue=MQ_ROUTING_KEY,
-        on_message_callback=process_new_message,
-        # auto_ack=True,
-    )
-    log.warning("Waiting for messages...")
-    channel.start_consuming()
-
-
 def main():
-    configure_logging(level=logging.WARNING),
-    with RabbitBase() as rabbit:
-        consume_messages(channel=rabbit.channel)
+    configure_logging(level=logging.INFO),
+    with SimpleRabbit() as rabbit:
+        rabbit.consume_messages(message_callback=process_new_message)
 
 
 if __name__ == "__main__":
